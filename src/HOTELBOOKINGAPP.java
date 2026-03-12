@@ -1,54 +1,89 @@
 import java.util.*;
-class AddOnService {
-    private String serviceName;
-    private double cost;
-    public AddOnService(String serviceName, double cost) {
-        this.serviceName = serviceName;
-        this.cost = cost;
+
+/*
+ * CLASS Reservation
+ * Represents a confirmed reservation
+ */
+class Reservation {
+
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
     }
-    public String getServiceName() {
-        return serviceName;
+
+    public String getGuestName() {
+        return guestName;
     }
-    public double getCost() {
-        return cost;
-    }
-}
-class AddOnServiceManager {
-    private Map<String, List<AddOnService>> servicesByReservation;
-    public AddOnServiceManager() {
-        servicesByReservation = new HashMap<>();
-    }
-    public void addService(String reservationId, AddOnService service) {
-        servicesByReservation
-                .computeIfAbsent(reservationId, k -> new ArrayList<>())
-                .add(service);
-        System.out.println(service.getServiceName()
-                + " added to reservation " + reservationId);
-    }
-    public double calculateTotalServiceCost(String reservationId) {
-        List<AddOnService> services = servicesByReservation.get(reservationId);
-        if (services == null) {
-            return 0;
-        }
-        double total = 0;
-        for (AddOnService service : services) {
-            total += service.getCost();
-        }
-        return total;
+
+    public String getRoomType() {
+        return roomType;
     }
 }
+
+
+/*
+ * CLASS BookingHistory
+ * Maintains confirmed reservation records
+ */
+class BookingHistory {
+
+    /* List that stores confirmed reservations */
+    private List<Reservation> confirmedReservations;
+
+    /* Constructor */
+    public BookingHistory() {
+        confirmedReservations = new ArrayList<>();
+    }
+
+    /* Add reservation to history */
+    public void addReservation(Reservation reservation) {
+        confirmedReservations.add(reservation);
+    }
+
+    /* Return stored reservations */
+    public List<Reservation> getConfirmedReservations() {
+        return confirmedReservations;
+    }
+}
+
+
+/*
+ * CLASS BookingReportService
+ * Generates reports from booking history
+ */
+class BookingReportService {
+
+    /* Display report */
+    public void generateReport(BookingHistory history) {
+
+        System.out.println("Booking History Report");
+
+        for (Reservation r : history.getConfirmedReservations()) {
+            System.out.println("Guest: " + r.getGuestName()
+                    + ", Room Type: " + r.getRoomType());
+        }
+    }
+}
+
+
+/*
+ * MAIN CLASS
+ * Use Case 8 Booking History Report
+ */
 public class HOTELBOOKINGAPP {
     public static void main(String[] args) {
-        System.out.println("Add-On Service Selection");
-        AddOnServiceManager manager = new AddOnServiceManager();
-        String reservationId = "RES101";
-        AddOnService breakfast = new AddOnService("Breakfast", 250);
-        AddOnService spa = new AddOnService("Spa", 1200);
-        AddOnService pickup = new AddOnService("Airport Pickup", 800);
-        manager.addService(reservationId, breakfast);
-        manager.addService(reservationId, spa);
-        manager.addService(reservationId, pickup);
-        double totalCost = manager.calculateTotalServiceCost(reservationId);
-        System.out.println("Total Add-On Cost: " + totalCost);
+        System.out.println("Booking History and Reporting");
+        BookingHistory history = new BookingHistory();
+        Reservation r1 = new Reservation("Abhi", "Single");
+        Reservation r2 = new Reservation("Subha", "Double");
+        Reservation r3 = new Reservation("Vanmathi", "Suite");
+        history.addReservation(r1);
+        history.addReservation(r2);
+        history.addReservation(r3);
+        BookingReportService report = new BookingReportService();
+        report.generateReport(history);
     }
 }
