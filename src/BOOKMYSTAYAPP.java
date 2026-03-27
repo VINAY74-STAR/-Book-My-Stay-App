@@ -1,6 +1,7 @@
+import java.io.*;
 import java.util.*;
 
-class RoomInventory {
+class RoomInventory implements Serializable {
     private Map<String, Integer> rooms;
 
     public RoomInventory() {
@@ -10,7 +11,15 @@ class RoomInventory {
         rooms.put("Suite", 2);
     }
 
-    public synchronized boolean bookRoom(String type) {
+    public Map<String, Integer> getRooms() {
+        return rooms;
+    }
+
+    public void setRooms(Map<String, Integer> rooms) {
+        this.rooms = rooms;
+    }
+
+    public boolean bookRoom(String type) {
         if (!rooms.containsKey(type) || rooms.get(type) <= 0) {
             return false;
         }
@@ -19,82 +28,103 @@ class RoomInventory {
     }
 
     public void displayRooms() {
-        System.out.println("Final Room Availability:");
+        System.out.println("Room Availability:");
         for (Map.Entry<String, Integer> entry : rooms.entrySet()) {
             System.out.println(entry.getKey() + " : " + entry.getValue());
         }
     }
 }
 
-class BookingRequest {
-    String guestName;
-    String roomType;
+class BookingSystem implements Serializable {
+    private RoomInventory inventory;
+    private Map<String, String> bookings;
+    private int counter;
 
-    public BookingRequest(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
+    public BookingSystem() {
+        inventory = new RoomInventory();
+        bookings = new HashMap<>();
+        counter = 1;
+    }
+
+    public void book(String type) {
+        if (inventory.bookRoom(type)) {
+            String id = "B" + counter++;
+            bookings.put(id, type);
+            System.out.println("Booked " + type + " with ID " + id);
+        } else {
+            System.out.println("Booking failed for " + type);
+        }
+    }
+
+    public void showBookings() {
+        System.out.println("Bookings:");
+        for (Map.Entry<String, String> e : bookings.entrySet()) {
+            System.out.println(e.getKey() + " -> " + e.getValue());
+        }
+    }
+
+    public void showInventory() {
+        inventory.displayRooms();
     }
 }
 
-class BookingProcessor extends Thread {
-    private Queue<BookingRequest> queue;
-    private RoomInventory inventory;
+class PersistenceService {
+    private static final String FILE = "data.ser";
 
-    public BookingProcessor(Queue<BookingRequest> queue, RoomInventory inventory) {
-        this.queue = queue;
-        this.inventory = inventory;
+    public static void save(BookingSystem system) {
+        try {
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(FILE));
+            out.writeObject(system);
+            out.close();
+            System.out.println("Data saved");
+        } catch (Exception e) {
+            System.out.println("Save failed");
+        }
     }
 
-    public void run() {
-        while (true) {
-            BookingRequest request;
-            synchronized (queue) {
-                if (queue.isEmpty()) {
-                    break;
-                }
-                request = queue.poll();
-            }
-            boolean success = inventory.bookRoom(request.roomType);
-            if (success) {
-                System.out.println(request.guestName + " booked " + request.roomType);
-            } else {
-                System.out.println(request.guestName + " failed to book " + request.roomType);
-            }
+    public static BookingSystem load() {
+        try {
+            ObjectInputStream in = new ObjectInputStream(new FileInputStream(FILE));
+            BookingSystem system = (BookingSystem) in.readObject();
+            in.close();
+            System.out.println("Data loaded");
+            return system;
+        } catch (Exception e) {
+            System.out.println("No previous data found, starting fresh");
+            return new BookingSystem();
         }
     }
 }
 
 public class BOOKMYSTAYAPP {
     public static void main(String[] args) {
-        RoomInventory inventory = new RoomInventory();
-        Queue<BookingRequest> queue = new LinkedList<>();
+        Scanner sc = new Scanner(System.in);
+        BookingSystem system = PersistenceService.load();
 
-        queue.add(new BookingRequest("Guest1", "Single"));
-        queue.add(new BookingRequest("Guest2", "Single"));
-        queue.add(new BookingRequest("Guest3", "Single"));
-        queue.add(new BookingRequest("Guest4", "Single"));
-        queue.add(new BookingRequest("Guest5", "Single"));
-        queue.add(new BookingRequest("Guest6", "Single"));
-        queue.add(new BookingRequest("Guest7", "Double"));
-        queue.add(new BookingRequest("Guest8", "Double"));
-        queue.add(new BookingRequest("Guest9", "Suite"));
-        queue.add(new BookingRequest("Guest10", "Suite"));
+        while (true) {
+            System.out.println("\n1.Book\n2.Show Inventory\n3.Show Bookings\n4.Save & Exit");
+            int ch = sc.nextInt();
 
-        BookingProcessor t1 = new BookingProcessor(queue, inventory);
-        BookingProcessor t2 = new BookingProcessor(queue, inventory);
-        BookingProcessor t3 = new BookingProcessor(queue, inventory);
-
-        t1.start();
-        t2.start();
-        t3.start();
-
-        try {
-            t1.join();
-            t2.join();
-            t3.join();
-        } catch (Exception e) {
+            switch (ch) {
+                case 1:
+                    System.out.print("Enter room type: ");
+                    String type = sc.next();
+                    system.book(type);
+                    break;
+                case 2:
+                    system.showInventory();
+                    break;
+                case 3:
+                    system.showBookings();
+                    break;
+                case 4:
+                    PersistenceService.save(system);
+                    System.out.println("Exiting...");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("Invalid");
+            }
         }
-
-        inventory.displayRooms();
     }
 }
