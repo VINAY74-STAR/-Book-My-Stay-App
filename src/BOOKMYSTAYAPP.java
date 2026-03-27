@@ -1,9 +1,11 @@
 import java.util.*;
-class InvalidBookingException extends Exception {
-    public InvalidBookingException(String message) {
+
+class InvalidCancellationException extends Exception {
+    public InvalidCancellationException(String message) {
         super(message);
     }
 }
+
 class RoomInventory {
     private Map<String, Integer> rooms;
 
@@ -13,23 +15,18 @@ class RoomInventory {
         rooms.put("Double", 3);
         rooms.put("Suite", 2);
     }
-    public void validateRoomType(String type) throws InvalidBookingException {
-        if (!rooms.containsKey(type)) {
-            throw new InvalidBookingException("Invalid room type: " + type);
-        }
+
+    public void incrementRoom(String type) {
+        rooms.put(type, rooms.get(type) + 1);
     }
-    public void checkAvailability(String type, int count) throws InvalidBookingException {
-        int available = rooms.get(type);
-        if (count <= 0) {
-            throw new InvalidBookingException("Booking count must be greater than 0");
+
+    public void decrementRoom(String type) throws InvalidCancellationException {
+        if (!rooms.containsKey(type) || rooms.get(type) <= 0) {
+            throw new InvalidCancellationException("Invalid room operation");
         }
-        if (available < count) {
-            throw new InvalidBookingException("Not enough rooms available. Available: " + available);
-        }
+        rooms.put(type, rooms.get(type) - 1);
     }
-    public void bookRoom(String type, int count) {
-        rooms.put(type, rooms.get(type) - count);
-    }
+
     public void displayRooms() {
         System.out.println("Current Room Availability:");
         for (Map.Entry<String, Integer> entry : rooms.entrySet()) {
@@ -37,31 +34,70 @@ class RoomInventory {
         }
     }
 }
+
 class BookingSystem {
     private RoomInventory inventory;
+    private Map<String, String> bookings;
+    private Stack<String> rollbackStack;
+    private int bookingCounter;
+
     public BookingSystem() {
         inventory = new RoomInventory();
+        bookings = new HashMap<>();
+        rollbackStack = new Stack<>();
+        bookingCounter = 1;
     }
-    public void processBooking(String type, int count) {
+
+    public String bookRoom(String type) {
         try {
-            inventory.validateRoomType(type);
-            inventory.checkAvailability(type, count);
-            inventory.bookRoom(type, count);
-            System.out.println("Booking successful for " + count + " " + type + " room(s).");
-        } catch (InvalidBookingException e) {
+            inventory.decrementRoom(type);
+            String bookingId = "B" + bookingCounter++;
+            bookings.put(bookingId, type);
+            rollbackStack.push(bookingId);
+            System.out.println("Booking successful. Booking ID: " + bookingId);
+            return bookingId;
+        } catch (Exception e) {
             System.out.println("Booking Failed: " + e.getMessage());
+            return null;
         }
     }
+
+    public void cancelBooking(String bookingId) {
+        try {
+            if (!bookings.containsKey(bookingId)) {
+                throw new InvalidCancellationException("Booking does not exist");
+            }
+            String type = bookings.get(bookingId);
+            if (!rollbackStack.contains(bookingId)) {
+                throw new InvalidCancellationException("Booking already cancelled");
+            }
+            rollbackStack.remove(bookingId);
+            inventory.incrementRoom(type);
+            bookings.remove(bookingId);
+            System.out.println("Cancellation successful for Booking ID: " + bookingId);
+        } catch (InvalidCancellationException e) {
+            System.out.println("Cancellation Failed: " + e.getMessage());
+        }
+    }
+
     public void showInventory() {
         inventory.displayRooms();
     }
+
+    public void showBookings() {
+        System.out.println("Active Bookings:");
+        for (Map.Entry<String, String> entry : bookings.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + entry.getValue());
+        }
+    }
 }
+
 public class BOOKMYSTAYAPP {
     public static void main(String[] args) {
         BookingSystem system = new BookingSystem();
         Scanner sc = new Scanner(System.in);
         while (true) {
-            System.out.println("\n1. Show Rooms\n2. Book Room\n3. Exit");
+            System.out.println("\n1. Show Rooms\n2. Book Room\n3. Cancel Booking\n4. Show Bookings\n5. Exit");
             System.out.print("Enter choice: ");
             int choice = sc.nextInt();
             switch (choice) {
@@ -71,11 +107,17 @@ public class BOOKMYSTAYAPP {
                 case 2:
                     System.out.print("Enter room type (Single/Double/Suite): ");
                     String type = sc.next();
-                    System.out.print("Enter number of rooms: ");
-                    int count = sc.nextInt();
-                    system.processBooking(type, count);
+                    system.bookRoom(type);
                     break;
                 case 3:
+                    System.out.print("Enter Booking ID: ");
+                    String id = sc.next();
+                    system.cancelBooking(id);
+                    break;
+                case 4:
+                    system.showBookings();
+                    break;
+                case 5:
                     System.out.println("Exiting...");
                     sc.close();
                     return;
